@@ -12,12 +12,16 @@ import pcapy
 import geoip2.database
 from geoip2.errors import *
 import threading
-# from time import sleep
 import time
 import subprocess
-# import gc
 import logging
 
+
+#--------------------------------
+# Thread内で1箇所だけupdateを指示している
+# japan->japan問題
+# 同じ通信先が続くと見栄えが悪い 
+#--------------------------------
 
 # gloval value
 # dump_file = "sniffer.pcap"
@@ -27,8 +31,6 @@ import logging
 # y_redline = 275
 # reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
 # main_window = ""
-s_cap_res = ""
-d_cap_res = ""
 # worldmapimage = 'world_map.jpg'
 # host_addr = ""
 # paint_x=0
@@ -51,10 +53,9 @@ class MainWindow(QWidget):
         self.y_redline = 275
         self.reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
         self.worldmapimage = 'world_map.jpg'
-        # self.s_cap_res
-        # self.d_cap_res
         self.host_addr=""
         self.counter=0
+        self.drawFlag=0
         self.srcLocationX=None
         self.srcLocationY=None
         self.dstLocationX=None
@@ -159,85 +160,46 @@ class MainWindow(QWidget):
         logging.info("stop")
         # self.scene.removeItem(self.item)
     def paintEvent(self,event):
-        time.sleep(0.1)
-        try:
-            self.renderLine(self.srcLocationX,self.srcLocationY,self.dstLocationX,self.dstLocationY)
-        except:
-            print("test")
-            pass
+        # self.scene.update(0,0,723,444)
+        if(self.drawFlag==1):
+            try:
+                self.renderLine(self.srcLocationX,self.srcLocationY,self.dstLocationX,self.dstLocationY)
+            except:
+                print(self.srcLocationX)
+                print(self.srcLocationY)
+                print(self.dstLocationX)
+                print(self.dstLocationY)
+                print("-----------------------------------------")
+                pass
+        self.drawFlag=0
     def initMap(self):
-        # global cnt
-        # global scene
-        # print("scene = "+hex(id(self.scene)))
-        # print("item = "+hex(id(self.item)))
-        # logging.info("scene = "+hex(id(self.scene)))
-        # logging.info("item = "+hex(id(self.item)))
-        # cnt=cnt+1
-        # print("initmap_start")
         logging.info("initmap_start")
-        # logging.info("item      = "+str(hex(id(self.item))))
-        # logging.info("item_addr = "+str(item_addr))
-        # logging.info("scene     = "+str(hex(id(self.scene))))
-        # logging.info("scene_addr= "+str(scene_addr))
         self.scene.removeItem(self.item)
-        # self.scene.removeItem(item)
         self.counter=self.counter+1
         self.counter=self.counter%10
+        # self.scene.clear()
         if (self.counter == 0):
             self.scene.clear()
+            logging.info("clear_finished")
             # pass
-            # print(self.counter)
-            
-        logging.info("clear_finished")
-        # pixmap = QtGui.QPixmap(self.worldmapimage)
-        # item = QtGui.QGraphicsPixmapItem(pixmap)
-        # logging.info("item      = "+str(hex(id(self.item))))
-        # logging.info("item_addr = "+str(item_addr))
-        # logging.info("scene     = "+str(hex(id(self.scene))))
-        # logging.info("scene_addr= "+str(scene_addr))
         self.scene.addItem(self.item)
-        # self.scene.addItem(item)
-        logging.info("additem_finished")
-        # self.scene.addLine(0,y_redline,map_width,y_redline,QPen(Qt.red))
-        # logging.info("addLine_1")
-        # self.scene.addLine(x_greenwich,0,x_greenwich,map_height,QPen(Qt.blue))
-        # print("cnt="+str(cnt))
-        # gc.collect()
-        # logging.info("scene = "+hex(id(self.scene)))
-        # logging.info("item = "+hex(id(self.item)))
+        # logging.info("additem_finished")
         logging.info("initmap_finished")
-
         
     def renderLine(self,src_x,src_y,dst_x,dst_y):
         self.initMap()
-        # self.scene.clearSelection()
-        # print("gc = "+str(gc.DEBUG_COLLECTABLE))
         logging.info("render_start")
         self.scene.addEllipse(src_x-5,src_y-5,10,10,QPen(Qt.red),QBrush(Qt.red))
-        logging.info("render_1")
+        # logging.info("render_1")
         self.scene.addEllipse(dst_x-5,dst_y-5,10,10,QPen(Qt.blue),QBrush(Qt.blue))
-        logging.info("render_2")
+        # logging.info("render_2")
         self.scene.addLine(src_x,src_y,dst_x,dst_y,QPen(Qt.black))
         logging.info("render_finished")
         self.scene.update(0,0,723,444)
-        self.update(0,0,1400,500)
-        logging.info("update_finished")
-        # self.viewscene = self.scene
-        # self.view.setScene(self.viewscene)
-        logging.info("renderLine_finished")
         self.write_ip()
         logging.info("write_ip_finished")
-    # def paintEvent(self,event):
-        # global paint_x
-        # paint_x = paint_x +1
-        # painter = QPainter(self.scene)
-        # painter.setPen(Qt.red)
-        # painter.setCompositionMode(QPainter.CompositionMode_Xor)
-        # painter.drawLine(paint_x,0,800,500)
-        # self.scene.addLine(paint_x,0,300,500,QPen(Qt.red))
-        # self.initMap()
-        
-        # print ("paintEvent")
+        self.update(0,0,1400,500)
+        logging.info("update_finished")
 
     def setLocation(self,src_x,src_y,dst_x,dst_y):
         self.srcLocationX=src_x
@@ -246,24 +208,14 @@ class MainWindow(QWidget):
         self.dstLocationY=dst_y
         
     def capture_thread(self):
-        
-        # global s_cap_res
-        # global d_cap_res
         logging.info ("Thread Start")
         cap = self.capture_packet(sys.argv)
         while(self.loopFlag):
             logging.info("LoopFlag"+str(self.loopFlag))
             logging.info ("next")
-            # logging.info ("scene = "+hex(id(self.scene)))
-            # logging.info ("viewscene = "+hex(id(self.viewscene)))
-            # logging.info ("item = "+hex(id(self.item)))
-            # logging.info ("item = "+hex(id(item)))
             (header,packet) = cap.next()
-            # self.initMap()
             logging.info ("parse")
-            # try:
             (protocol_type,s_addr,d_addr) = self.parse_packet(packet)
-            # cap_res = str(s_addr)+"("+str(get_geoip(s_addr))+")->"+str(d_addr)+"("+str(get_geoip(d_addr))+")"
             logging.info ("res")
             self.s_cap_res = str(protocol_type)+": "+ str(s_addr)+"("+str(self.get_geoip(s_addr)) + ","+str(self.get_geoip_location(s_addr))+")"
             self.d_cap_res = str(d_addr)+"("+str(self.get_geoip(d_addr)) + ","+str(self.get_geoip_location(d_addr))+")"
@@ -301,7 +253,9 @@ class MainWindow(QWidget):
             # self.update()
             # print("update_finished")
             logging.info("sleep_started")
-            # time.sleep(0.5)
+            self.drawFlag=1
+            time.sleep(0.1)
+            self.update(0,0,1400,500)
             # nowtime=time.clock()
             # while((time.clock()-nowtime) < 0.5):
             #     # print(self.counter)
@@ -327,59 +281,36 @@ class MainWindow(QWidget):
         client_thread.start()
         
     def write_ip(self):
-        # global s_cap_res
-        # global d_cap_res
-        # print (len(s_cap_res))
-        # print (len(d_cap_res))
-        # self.textBox.append(self.s_cap_res+" => "+self.d_cap_res+"\n")
         logging.info("test1")
         # self.label5.clear()
-        # self.label5.setText(self.label4.text())
-        old=self.label4.text()
-        self.label5.setText(old)
+        self.label5.setText(self.label4.text())
+        # old=self.label4.text()
+        # self.label5.setText(old)
         logging.info("test2")
-        # self.label4.clear()
-        # self.label4.setText(self.label3.text())
-        old=self.label3.text()
-        self.label4.setText(old)
+        self.label4.setText(self.label3.text())
+        # old=self.label3.text()
+        # self.label4.setText(old)
         logging.info("test3")
-        # self.label3.clear()
-        # self.label3.setText(self.label2.text())
-        old=self.label2.text()
-        self.label3.setText(old)
+        self.label3.setText(self.label2.text())
+        # old=self.label2.text()
+        # self.label3.setText(old)
         logging.info("test4")
-        # self.label2.clear()
-        # self.label2.setText(self.label1.text())
-        old=self.label1.text()
-        self.label2.setText(old)
+        self.label2.setText(self.label1.text())
+        # old=self.label1.text()
+        # self.label2.setText(old)
         logging.info("test5")
-        # self.label1.clear()
-        old=str(self.s_cap_res)+" \n=> "+str(self.d_cap_res)
-        # self.label1.setText(self.s_cap_res+" \n=> "+self.d_cap_res)
-        self.label1.setText(old)
+        # old=str(self.s_cap_res)+" \n=> "+str(self.d_cap_res)
+        self.label1.setText(self.s_cap_res+" \n=> "+self.d_cap_res)
+        # self.label1.setText(old)
         logging.info("write_ip_finished")
-        # self.textBox.setText(s_cap_res+" => "+d_cap_res+"\n")
-        # self.textBox.append("-"*70)
-        # s_cap_res = ""
-        # d_cap_res = ""
-        # print "write_ip "+cap_res+"\n"
-
-    def get_geoip(self,addr):
-        # gi = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE)
-        # print gi.country_code_by_addr('203.216.243.218')   # www.yahoo.co.jp
-        # print (gi.country_code_by_addr(addr))
-        # return gi.country_code_by_addr(addr)
         
-        # reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
+    def get_geoip(self,addr):
         try:
             record = self.reader.city(addr)
             logging.info (record.country.name)
-            # print (record.country.name+", ("+record.location.latitude+","+record.location.longitude+")")
-            # return (record.country.name+", ("+record.location.latitude+","+record.location.longitude+")")
             return record.country.name
         except AddressNotFoundError:
             logging.info ("geoip None")
-            # print ("addr="+addr+" self.host_addr="+self.host_addr[2:(len(self.host_addr) -1 )])
             if(str(addr) == self.host_addr):
                 return "host"
             else:
@@ -388,7 +319,6 @@ class MainWindow(QWidget):
             return None
 
     def get_geoip_location(self,addr):
-        # reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
         try:
             record = self.reader.city(addr)
             logging.info (record.location.latitude)
@@ -396,7 +326,6 @@ class MainWindow(QWidget):
             ip_location = str(record.location.latitude) + "," + str(record.location.longitude)
             return ip_location
         except AddressNotFoundError:
-            # if (str(addr) == str(host_addr[2:(len(host_addr) -1)])):
             if(str(addr) == self.host_addr):
                 return "35,139"#host_addr
             else:
@@ -405,15 +334,8 @@ class MainWindow(QWidget):
             logging.info("Exception_type="+str(type(e)))
             logging.info("Exception="+str(e))
             return None
-    # def get_location(self,addr):
-    #     try:
-    #         record = reader.city(addr)
-    #         return record.location.latitude , record.location.longitude
-    #     except:
-    #         return None,None
         
     def capture_packet(self,argv):
-        # global host_addr
         device = pcapy.findalldevs()[0]
         cap = pcapy.open_live(device,65536,True,0)
         # cap.setfilter('tcp')
@@ -422,20 +344,16 @@ class MainWindow(QWidget):
         first = self.host_addr.index("inet")+5
         last = self.host_addr.index("brd")-4
         self.host_addr = self.host_addr[first:last]
-        # self.host_addr = str(self.host_addr[105:118])
         logging.info ("host_addr="+self.host_addr)
         return cap
 
     def eth_addr (self,a) :
-        # b = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" % (ord(str(a[0])) , ord(str(a[1])) , ord(str(a[2])), ord(str(a[3])), ord(str(a[4])) , ord(str(a[5])))
         b = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x" % (ord(chr(a[0])) , ord(chr(a[1])) , ord(chr(a[2])), ord(chr(a[3])), ord(chr(a[4])) , ord(chr(a[5])))
         return b
 
     #function to parse a packet
     def parse_packet(self,packet) :
         logging.info ("parse_packet")
-        # logging.info ("\n"+str(packet)+"\n")
-        # logging.info ("\n"+str(int.from_bytes(packet,'little'))+"\n")
         
         #parse ethernet header
         eth_length = 14
