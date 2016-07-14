@@ -27,8 +27,8 @@ import logging
 # y_redline = 275
 # reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
 # main_window = ""
-# s_cap_res = ""
-# d_cap_res = ""
+s_cap_res = ""
+d_cap_res = ""
 # worldmapimage = 'world_map.jpg'
 # host_addr = ""
 # paint_x=0
@@ -55,6 +55,11 @@ class MainWindow(QWidget):
         # self.d_cap_res
         self.host_addr=""
         self.counter=0
+        self.srcLocationX=None
+        self.srcLocationY=None
+        self.dstLocationX=None
+        self.dstLocationY=None
+        
         logging.basicConfig(filename='out_pyreshark.log',level=logging.DEBUG)
         
         
@@ -70,8 +75,8 @@ class MainWindow(QWidget):
 
         # global scene
         # global pixmap
-        global item_addr
-        global scene_addr
+        # global item_addr
+        # global scene_addr
         # global item
         
         self.view = QtGui.QGraphicsView()
@@ -92,7 +97,7 @@ class MainWindow(QWidget):
         # self.viewscene = QtGui.QGraphicsScene()
         self.view.setScene(self.scene)
         # print("scene = "+hex(id(self.scene)))
-        logging.info("scene = "+hex(id(self.scene)))
+        # logging.info("scene = "+hex(id(self.scene)))
 
         self.label1 = QtGui.QLabel("Label1")
         self.label2 = QtGui.QLabel("Label2")
@@ -153,6 +158,13 @@ class MainWindow(QWidget):
         # print("stop")
         logging.info("stop")
         # self.scene.removeItem(self.item)
+    def paintEvent(self,event):
+        time.sleep(0.1)
+        try:
+            self.renderLine(self.srcLocationX,self.srcLocationY,self.dstLocationX,self.dstLocationY)
+        except:
+            print("test")
+            pass
     def initMap(self):
         # global cnt
         # global scene
@@ -163,10 +175,10 @@ class MainWindow(QWidget):
         # cnt=cnt+1
         # print("initmap_start")
         logging.info("initmap_start")
-        logging.info("item      = "+str(hex(id(self.item))))
-        logging.info("item_addr = "+str(item_addr))
-        logging.info("scene     = "+str(hex(id(self.scene))))
-        logging.info("scene_addr= "+str(scene_addr))
+        # logging.info("item      = "+str(hex(id(self.item))))
+        # logging.info("item_addr = "+str(item_addr))
+        # logging.info("scene     = "+str(hex(id(self.scene))))
+        # logging.info("scene_addr= "+str(scene_addr))
         self.scene.removeItem(self.item)
         # self.scene.removeItem(item)
         self.counter=self.counter+1
@@ -179,10 +191,10 @@ class MainWindow(QWidget):
         logging.info("clear_finished")
         # pixmap = QtGui.QPixmap(self.worldmapimage)
         # item = QtGui.QGraphicsPixmapItem(pixmap)
-        logging.info("item      = "+str(hex(id(self.item))))
-        logging.info("item_addr = "+str(item_addr))
-        logging.info("scene     = "+str(hex(id(self.scene))))
-        logging.info("scene_addr= "+str(scene_addr))
+        # logging.info("item      = "+str(hex(id(self.item))))
+        # logging.info("item_addr = "+str(item_addr))
+        # logging.info("scene     = "+str(hex(id(self.scene))))
+        # logging.info("scene_addr= "+str(scene_addr))
         self.scene.addItem(self.item)
         # self.scene.addItem(item)
         logging.info("additem_finished")
@@ -201,11 +213,11 @@ class MainWindow(QWidget):
         # self.scene.clearSelection()
         # print("gc = "+str(gc.DEBUG_COLLECTABLE))
         logging.info("render_start")
-        # self.scene.addEllipse(src_x-5,src_y-5,10,10,QPen(Qt.red),QBrush(Qt.red))
+        self.scene.addEllipse(src_x-5,src_y-5,10,10,QPen(Qt.red),QBrush(Qt.red))
         logging.info("render_1")
-        # self.scene.addEllipse(dst_x-5,dst_y-5,10,10,QPen(Qt.blue),QBrush(Qt.blue))
+        self.scene.addEllipse(dst_x-5,dst_y-5,10,10,QPen(Qt.blue),QBrush(Qt.blue))
         logging.info("render_2")
-        # self.scene.addLine(src_x,src_y,dst_x,dst_y,QPen(Qt.black))
+        self.scene.addLine(src_x,src_y,dst_x,dst_y,QPen(Qt.black))
         logging.info("render_finished")
         self.scene.update(0,0,723,444)
         self.update(0,0,1400,500)
@@ -213,6 +225,8 @@ class MainWindow(QWidget):
         # self.viewscene = self.scene
         # self.view.setScene(self.viewscene)
         logging.info("renderLine_finished")
+        self.write_ip()
+        logging.info("write_ip_finished")
     # def paintEvent(self,event):
         # global paint_x
         # paint_x = paint_x +1
@@ -224,6 +238,12 @@ class MainWindow(QWidget):
         # self.initMap()
         
         # print ("paintEvent")
+
+    def setLocation(self,src_x,src_y,dst_x,dst_y):
+        self.srcLocationX=src_x
+        self.srcLocationY=src_y
+        self.dstLocationX=dst_x
+        self.dstLocationY=dst_y
         
     def capture_thread(self):
         
@@ -234,9 +254,9 @@ class MainWindow(QWidget):
         while(self.loopFlag):
             logging.info("LoopFlag"+str(self.loopFlag))
             logging.info ("next")
-            logging.info ("scene = "+hex(id(self.scene)))
+            # logging.info ("scene = "+hex(id(self.scene)))
             # logging.info ("viewscene = "+hex(id(self.viewscene)))
-            logging.info ("item = "+hex(id(self.item)))
+            # logging.info ("item = "+hex(id(self.item)))
             # logging.info ("item = "+hex(id(item)))
             (header,packet) = cap.next()
             # self.initMap()
@@ -261,7 +281,10 @@ class MainWindow(QWidget):
                 logging.info ("srcY="+str(srcloc_y))
                 logging.info ("dstX="+str(dstloc_x))
                 logging.info ("dstY="+str(dstloc_y))
-                self.renderLine(srcloc_x,srcloc_y,dstloc_x,dstloc_y)
+                self.setLocation(srcloc_x,srcloc_y,dstloc_x,dstloc_y)
+            else:
+                self.setLocation(None,None,None,None)
+                # self.renderLine(srcloc_x,srcloc_y,dstloc_x,dstloc_y)
             # except AddressNotFoundError:
                 # print("AddressNotFoundError")
                 # pass
@@ -269,7 +292,7 @@ class MainWindow(QWidget):
                 # print("try-except")
                 # pass
             logging.info ("write_packet")
-            self.write_ip()
+            # self.write_ip()
             logging.info("write_ip_done")
             # except TypeError as e:
             #     print ("typeerror")
