@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 import sys
+import os
 from PyQt4.QtGui import *       
 from PyQt4.QtCore import *
 from PyQt4 import QtGui
@@ -14,13 +15,19 @@ from geoip2.errors import *
 import threading
 import time
 import subprocess
+import gzip
+import shutil
 import logging
 
 
 #--------------------------------
 # Thread内で1箇所だけupdateを指示している
-# japan->japan問題
-# 同じ通信先が続くと見栄えが悪い 
+# japan->japan問題　=>　日本だけ拡大、もしくは同時に表示
+# 同じ通信先が続くと見栄えが悪い
+# プロトコルで線の色を変える
+# 曲線orビーム
+# パケットない状態で閉じると終わらない
+# 左のラベルをクリックするとその時の状況を反映＋キャプチャストップ
 #--------------------------------
 
 # gloval value
@@ -144,6 +151,7 @@ class MainWindow(QWidget):
         self.loopFlag=0
         # print("close")
         logging.info("close")
+        self.compress_log()
         sys.exit(self)
         # sys.exit(1)
     def start_capture(self):
@@ -159,6 +167,12 @@ class MainWindow(QWidget):
         # print("stop")
         logging.info("stop")
         # self.scene.removeItem(self.item)
+    def compress_log(self):
+        with open('./out_pyreshark.log','rb') as f_in:
+            with gzip.open('./out_pyreshark.log.gz','wb') as f_out:
+                shutil.copyfileobj(f_in,f_out)
+                os.remove('./out_pyreshark.log')
+                    
     def paintEvent(self,event):
         # self.scene.update(0,0,723,444)
         if(self.drawFlag==1):
@@ -189,11 +203,22 @@ class MainWindow(QWidget):
     def renderLine(self,src_x,src_y,dst_x,dst_y):
         self.initMap()
         logging.info("render_start")
+        ip_protocol = self.s_cap_res.split(':')[0]
+        if (ip_protocol=='ICMP'):
+            linePen=QPen(Qt.black)
+        elif (ip_protocol=='TCP'):
+            linePen=QPen(Qt.blue)
+        elif (ip_protocol=='UDP'):
+            linePen=QPen(Qt.green)
+        elif (ip_protocol=='IPv6'):
+            linePen=QPen(Qt.red)
+        else :
+            linePen=QPen(Qt.yellow)
+        self.scene.addLine(src_x,src_y,dst_x,dst_y,linePen)
         self.scene.addEllipse(src_x-5,src_y-5,10,10,QPen(Qt.red),QBrush(Qt.red))
-        # logging.info("render_1")
         self.scene.addEllipse(dst_x-5,dst_y-5,10,10,QPen(Qt.blue),QBrush(Qt.blue))
+        # logging.info("render_1")
         # logging.info("render_2")
-        self.scene.addLine(src_x,src_y,dst_x,dst_y,QPen(Qt.black))
         logging.info("render_finished")
         self.scene.update(0,0,723,444)
         self.write_ip()
@@ -254,7 +279,7 @@ class MainWindow(QWidget):
             # print("update_finished")
             logging.info("sleep_started")
             self.drawFlag=1
-            time.sleep(0.1)
+            time.sleep(0.01)
             self.update(0,0,1400,500)
             # nowtime=time.clock()
             # while((time.clock()-nowtime) < 0.5):
