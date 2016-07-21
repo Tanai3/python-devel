@@ -20,8 +20,8 @@ def usage():
     print("-s, --source         source_ip        default 192.168.0.1")
     print("-d, --destination    destination_ip   default 127.0.0.1")
     print("-p, --port           destination_port default port_80")
-    print("-m, --message        send message")
-    print("-v, --version        show version")
+    print("-m, --message        send message     default Hello, how are you")
+    print("-f, --fake           fake sender.fact send packet to fake_ip")
     sys.exit()
 def main():
     global ip_protocol
@@ -29,12 +29,13 @@ def main():
     global dest_ip
     global port
     global user_data
+    fakeFlag=0
 
     if not len(sys.argv[1:]):
         usage()
     try:
-        shortopt="htui:s:d:p:m:v"
-        longopt=["help","tcp","udp","icmp","source=","destination=","port=","message=","version"]
+        shortopt="htuis:d:p:m:f:"
+        longopt=["help","tcp","udp","icmp","source=","destination=","port=","message=","fake="]
         opts,args = getopt.getopt(sys.argv[1:],shortopt,longopt)
     except getopt.GetoptError as err:
         print(str(err))
@@ -54,12 +55,17 @@ def main():
             print("src="+str(a))
         elif o in ("-d","--destination"):
             dest_ip=str(a)
-            print("test2")
+            fact_ip=str(a)
+            print("dst="+str(a))
         elif o in ("-p","--port"):
             port=a
-            print("test3")
+            print("port="+str(a))
         elif o in("-m","--message"):
             user_data=a
+        elif o in("-f","--fake"):
+            fakeFlag=1
+            fake_ip=str(a)
+            print("fact send="+str(a))
         else:
             assert False,"Unhandled Option"
             usage()
@@ -73,20 +79,30 @@ def main():
     packet=""
     if ip_protocol==socket.IPPROTO_TCP:
         packet=tcp_packet()
-    if ip_protocol==socket.IPPROTO_UDP:
+        print("tcp")
+    elif ip_protocol==socket.IPPROTO_UDP:
         packet=udp_packet()
+        print("udp")
+    elif ip_protocol==socket.IPPROTO_ICMP:
+        packet=icmp_packet()
+        print("icmp")
     else:
-        print("protocol error")
+        print("Protocol has not been specified")
         sys.exit()
 
-    print(packet) 
+    print(packet)
     #Send the packet finally - the port specified has no effect
-    s.sendto(packet, (dest_ip , 0 ))    # put this in a loop if you want to flood the target
+    if fakeFlag==0:
+        s.sendto(packet, (dest_ip , 0 ))    # put this in a loop if you want to flood the target
+    else:
+        s.sendto(packet, (fake_ip , 0 ))    # put this in a loop if you want to flood the target
         
 def checksum(msg):
     # 文字数が奇数のときIndex out of range
     s = 0
-    print(len(msg))
+    # print(len(msg))
+    if len(msg) % 2 == 1:
+        msg = msg + "\0".encode('utf-8')
     for i in range(0,len(msg),2):
         w = ord(chr(msg[i])) + (ord(chr(msg[i+1])) << 8 )
         s = s+w
@@ -113,7 +129,7 @@ def create_ip_header():
     # the ! in the pack format string means network order
     ip_header = pack('!BBHHHBBH4s4s' , ip_ihl_ver, ip_tos, ip_tot_len, ip_id, ip_frag_off, ip_ttl, ip_proto, ip_check, ip_saddr, ip_daddr)
 
-    print(len(ip_header))
+    # print(len(ip_header))
     return ip_header
 
 def tcp_packet():
@@ -184,7 +200,27 @@ def udp_packet():
     
     
 def icmp_packet():
-    print("test")
+    icmp_packet=""
+    ip_header = create_ip_header()
+    icmp_type=8
+    icmp_code=0
+    icmp_check=0
+    icmp_id=0
+    icmp_seq=0
+    icmp_header = pack("!BBHHH",icmp_type,icmp_code,icmp_check,icmp_id,icmp_seq)
+
+    source_address=socket.inet_aton(source_ip)
+    dest_address=socket.inet_aton(dest_ip)
+    placeholder=0
+    protocol=ip_protocol
+    icmp_length=len(icmp_header)+len(user_data)
+
+    psh = pack('!4s4sBBH',source_address,dest_address,placeholder,protocol,icmp_length)
+    psh = psh + icmp_header + user_data.encode('utf-8')
+    icmp_check = checksum(psh)
+    icmp_header = pack("!BBHHH",icmp_type,icmp_code,icmp_check,icmp_id,icmp_seq)
+    icmp_packet = ip_header + icmp_header + user_data.encode('utf-8')
+    return icmp_packet
     
 if __name__ == '__main__':
     main()
