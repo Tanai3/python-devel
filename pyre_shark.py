@@ -21,10 +21,10 @@ import logging
 
 
 #--------------------------------
-# Thread内で1箇所だけupdateを指示している
+# Thread内で1箇所だけupdateを指示している sleepなしにするとここで落ちる可能性あり
 # japan->japan問題　=>　日本だけ拡大、もしくは同時に表示
 # 同じ通信先が続くと見栄えが悪い
-# プロトコルで線の色を変える
+# プロトコルで線の色を変える <= DONE
 # 曲線orビーム
 # パケットない状態で閉じると終わらない
 # 左のラベルをクリックするとその時の状況を反映＋キャプチャストップ
@@ -34,8 +34,6 @@ import logging
 # dump_file = "sniffer.pcap"
 # map_width=723
 # map_height=444
-# x_greenwich = 65
-# y_redline = 275
 # reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
 # main_window = ""
 # worldmapimage = 'world_map.jpg'
@@ -54,12 +52,16 @@ class MainWindow(QWidget):
     def __init__(self,parent=None):
         # gc.enable()
         self.loopFlag = 0
-        self.map_width=723
-        self.map_height=444
-        self.x_greenwich = 65
-        self.y_redline = 275
+        # self.map_width=723
+        # self.map_height=444
+        self.map_width=763
+        self.map_height=507
+        # self.x_greenwich = 65
+        # self.y_redline = 275
+        self.x_greenwich = 67
+        self.y_redline = 296
         self.reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
-        self.worldmapimage = 'world_map.jpg'
+        self.worldmapimage = 'world_map.png'
         self.host_addr=""
         self.counter=0
         self.drawFlag=0
@@ -98,10 +100,10 @@ class MainWindow(QWidget):
         # item_addr=hex(id(item))
         self.scene.addItem(self.item)
         # self.scene.addItem(item)
-        # self.scene.addLine(0,y_redline,map_width,y_redline,QPen(Qt.red))
-        # self.scene.addLine(x_greenwich,0,x_greenwich,map_height,QPen(Qt.blue))
-        # self.scene.addLine(345,0,345,map_height,QPen(Qt.black)) #japan_x
-        # self.scene.addLine(0,200,map_width,200,QPen(Qt.black)) #japan_y
+        self.scene.addLine(0,self.y_redline,self.map_width,self.y_redline,QPen(Qt.red))
+        self.scene.addLine(self.x_greenwich,0,self.x_greenwich,self.map_height,QPen(Qt.blue))
+        self.scene.addLine(370,0,370,self.map_height,QPen(Qt.black)) #japan_x
+        self.scene.addLine(0,213,self.map_width,213,QPen(Qt.black)) #japan_y
         # self.viewscene = QtGui.QGraphicsScene()
         self.view.setScene(self.scene)
         # print("scene = "+hex(id(self.scene)))
@@ -159,6 +161,7 @@ class MainWindow(QWidget):
         if self.loopFlag==0:
             self.write_packet()
         self.loopFlag=1
+        # self.start_button.setEnabled(false)
         # print("start")
         logging.info("start")
     def stop_capture(self):
@@ -184,16 +187,17 @@ class MainWindow(QWidget):
                 print(self.dstLocationX)
                 print(self.dstLocationY)
                 print("-----------------------------------------")
-                pass
+                self.write_ip()
+                # pass
         self.drawFlag=0
     def initMap(self):
         logging.info("initmap_start")
         self.scene.removeItem(self.item)
         self.counter=self.counter+1
         self.counter=self.counter%10
-        # self.scene.clear()
+        self.scene.clear()
         if (self.counter == 0):
-            self.scene.clear()
+            # self.scene.clear()
             logging.info("clear_finished")
             # pass
         self.scene.addItem(self.item)
@@ -220,10 +224,11 @@ class MainWindow(QWidget):
         # logging.info("render_1")
         # logging.info("render_2")
         logging.info("render_finished")
-        self.scene.update(0,0,723,444)
         self.write_ip()
         logging.info("write_ip_finished")
         self.update(0,0,1400,500)
+        self.scene.update(0,0,self.map_width,self.map_height)
+
         logging.info("update_finished")
 
     def setLocation(self,src_x,src_y,dst_x,dst_y):
@@ -292,12 +297,13 @@ class MainWindow(QWidget):
         if x < 0:
             # x = 180+(180-x)
             x = 360 + x
-        x = x*2+self.x_greenwich
-        if x > 723:
-            x = x - 723
+        x = x*(self.map_width/360)+self.x_greenwich+10
+        if x > self.map_width:
+            x = x - self.map_width
         return x
     def mapLocationY(self,y):
-        return self.y_redline-2*y
+        # print (self.map_height/self.y_redline)
+        return self.y_redline-2.4*y
     def write_packet(self):
         # self.textBox.append(capture_packet(sys.argv))
         # self.start_button.clicked.disconnect(self.write_packet)
