@@ -73,7 +73,7 @@ def main():
     try:
         s=socket.socket(socket.AF_INET,socket.SOCK_RAW,socket.IPPROTO_RAW)
     except:
-        print("error1")
+        print("socket error")
         sys.exit()
 
     packet=""
