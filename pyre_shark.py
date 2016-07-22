@@ -28,6 +28,8 @@ import logging
 # 曲線orビーム
 # パケットない状態で閉じると終わらない
 # 左のラベルをクリックするとその時の状況を反映＋キャプチャストップ
+# サブネットに対応する
+# マルチキャストに対応する？
 #--------------------------------
 
 # gloval value
@@ -109,11 +111,11 @@ class MainWindow(QWidget):
         # print("scene = "+hex(id(self.scene)))
         # logging.info("scene = "+hex(id(self.scene)))
 
-        self.label1 = QtGui.QLabel("Label1")
-        self.label2 = QtGui.QLabel("Label2")
-        self.label3 = QtGui.QLabel("Label3")
-        self.label4 = QtGui.QLabel("Label4")
-        self.label5 = QtGui.QLabel("Label5")
+        self.label1 = QtGui.QLabel("")
+        self.label2 = QtGui.QLabel("")
+        self.label3 = QtGui.QLabel("")
+        self.label4 = QtGui.QLabel("")
+        self.label5 = QtGui.QLabel("")
         font = QtGui.QFont()
         font.setPointSize(15)
         self.label1.setFont(font)
@@ -180,7 +182,15 @@ class MainWindow(QWidget):
         # self.scene.update(0,0,723,444)
         if(self.drawFlag==1):
             try:
-                self.renderLine(self.srcLocationX,self.srcLocationY,self.dstLocationX,self.dstLocationY)
+                if (self.srcLocationX != None and self.srcLocationY != None and self.dstLocationX != None and self.dstLocationY != None):
+                    self.renderLine(self.srcLocationX,self.srcLocationY,self.dstLocationX,self.dstLocationY)
+                else:
+                    print(self.srcLocationX)
+                    print(self.srcLocationY)
+                    print(self.dstLocationX)
+                    print(self.dstLocationY)
+                    print("-----------------------------------------")
+                    self.write_ip()
             except:
                 print(self.srcLocationX)
                 print(self.srcLocationY)
@@ -198,8 +208,8 @@ class MainWindow(QWidget):
         self.scene.clear()
         if (self.counter == 0):
             # self.scene.clear()
-            logging.info("clear_finished")
-            # pass
+            # logging.info("clear_finished")
+            pass
         self.scene.addItem(self.item)
         # logging.info("additem_finished")
         logging.info("initmap_finished")
@@ -370,12 +380,16 @@ class MainWindow(QWidget):
         device = pcapy.findalldevs()[0]
         cap = pcapy.open_live(device,65536,True,0)
         # cap.setfilter('tcp')
+        
+        # ホスト判定部------------------------------------------------------------------------------
         self.host_addr = subprocess.check_output("ip a | grep {0}".format(device),shell=True)
         self.host_addr=str(self.host_addr)
         first = self.host_addr.index("inet")+5
         last = self.host_addr.index("brd")-4
         self.host_addr = self.host_addr[first:last]
         logging.info ("host_addr="+self.host_addr)
+        # ------------------------------------------------------------------------------------------
+        
         return cap
 
     def eth_addr (self,a) :
