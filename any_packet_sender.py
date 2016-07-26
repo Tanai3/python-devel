@@ -79,13 +79,13 @@ def main():
     packet=""
     if ip_protocol==socket.IPPROTO_TCP:
         packet=tcp_packet()
-        print("tcp")
+        print("Protocol=tcp")
     elif ip_protocol==socket.IPPROTO_UDP:
         packet=udp_packet()
-        print("udp")
+        print("Protocol=udp")
     elif ip_protocol==socket.IPPROTO_ICMP:
         packet=icmp_packet()
-        print("icmp")
+        print("Protocol=icmp")
     else:
         print("Protocol has not been specified")
         sys.exit()
