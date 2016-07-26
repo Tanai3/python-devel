@@ -29,6 +29,10 @@ import logging
 # パケットない状態で閉じると終わらない
 # 左のラベルをクリックするとその時の状況を反映＋キャプチャストップ
 # サブネットに対応する
+#  まずサブネットマスクを取得し、これを8で割る。余りも求める
+#  str型で1を8回つなげる、余りの場合は当然1~7回
+#  int(str,2)で2進数から10進数へ
+#  &でand取る
 # マルチキャストに対応する？
 #--------------------------------
 
@@ -64,7 +68,9 @@ class MainWindow(QWidget):
         self.y_redline = 296
         self.reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb')
         self.worldmapimage = 'world_map.png'
-        self.host_addr=""
+        self.host_addr_v4=""
+        self.host_sub=['192','168','11','0']
+        self.subnet_mask=""
         self.counter=0
         self.drawFlag=0
         self.srcLocationX=None
@@ -185,11 +191,11 @@ class MainWindow(QWidget):
                 if (self.srcLocationX != None and self.srcLocationY != None and self.dstLocationX != None and self.dstLocationY != None):
                     self.renderLine(self.srcLocationX,self.srcLocationY,self.dstLocationX,self.dstLocationY)
                 else:
-                    print(self.srcLocationX)
-                    print(self.srcLocationY)
-                    print(self.dstLocationX)
-                    print(self.dstLocationY)
-                    print("-----------------------------------------")
+                    # print(self.srcLocationX)
+                    # print(self.srcLocationY)
+                    # print(self.dstLocationX)
+                    # print(self.dstLocationY)
+                    # print("-----------------------------------------")
                     self.write_ip()
             except:
                 print(self.srcLocationX)
@@ -352,8 +358,20 @@ class MainWindow(QWidget):
             return record.country.name
         except AddressNotFoundError:
             logging.info ("geoip None")
-            if(str(addr) == self.host_addr):
-                return "host"
+            flag = 1
+            if(addr.find(':') != -1):
+                return None
+            addr=str(addr).split('.')
+            subnetmask=self.subnet_mask.split('.')
+            for i in range(0,4):
+                if(int(addr[i]) & int(subnetmask[i]) != int(self.host_sub[i])):
+                    flag=0
+            # print("flag="+str(flag))
+            if(flag == 1):
+                if(addr == host_addr_v4):
+                    return "host"
+                else:
+                    return "the same network"
             else:
                 return None
         except:
@@ -367,10 +385,26 @@ class MainWindow(QWidget):
             ip_location = str(record.location.latitude) + "," + str(record.location.longitude)
             return ip_location
         except AddressNotFoundError:
-            if(str(addr) == self.host_addr):
-                return "35,139"#host_addr
+            # ホストネットワーク判定          
+            logging.info ("geoip None")
+            flag = 1
+            if(addr.find(':') != -1):
+                return None
+            addr=str(addr).split('.')
+            subnetmask=self.subnet_mask.split('.')
+            for i in range(0,4):
+                if(int(addr[i]) & int(subnetmask[i]) != int(self.host_sub[i])):
+                    flag=0
+            # print("flag="+str(flag))
+            if(flag == 1):
+                #return "host"
+                return "35,139"#host_addr_v4
             else:
                 return None
+            # if(str(addr) == self.host_addr_v4):
+            #     return "35,139"#host_addr_v4
+            # else:
+            #     return None
         except Exception as e:
             logging.info("Exception_type="+str(type(e)))
             logging.info("Exception="+str(e))
@@ -382,12 +416,47 @@ class MainWindow(QWidget):
         # cap.setfilter('tcp')
         
         # ホスト判定部------------------------------------------------------------------------------
-        self.host_addr = subprocess.check_output("ip a | grep {0}".format(device),shell=True)
-        self.host_addr=str(self.host_addr)
-        first = self.host_addr.index("inet")+5
-        last = self.host_addr.index("brd")-4
-        self.host_addr = self.host_addr[first:last]
-        logging.info ("host_addr="+self.host_addr)
+        self.host_addr_v4 = subprocess.check_output("ip a | grep {0}".format(device),shell=True)
+        self.host_addr_v4=str(self.host_addr_v4)
+        first = self.host_addr_v4.index("inet")+5
+        last = self.host_addr_v4.index("brd")-4
+        self.host_addr_v4 = self.host_addr_v4[first:last]
+        logging.info ("host_addr_v4="+self.host_addr_v4)
+
+        # サブネットマスクの計算
+        self.subnet_mask = subprocess.check_output("ip a | grep {0}".format(device),shell=True)
+        self.subnet_mask = str(self.subnet_mask)
+        first = self.subnet_mask.index("/")+1
+        last = self.subnet_mask.index("brd")
+        self.subnet_mask = int(self.subnet_mask[first:last])
+        # print(self.subnet_mask)
+        # cnt1=self.subnet_mask /8
+        # cnt2=self.subnet_mask % 8
+        # print("cnt1="+str(cnt1)+" cnt2="+str(cnt2))
+        # ip_binary=""
+        # subnetmask=""
+        # while(cnt1 > 0):
+        #     cnt1 = cnt1 -1
+        #     for i in range(0,8):
+        #         ip_binary=ip_binary+'1'
+        #     # subnetmask=subnetmask+str(int(ip_binary,2))+','
+        #     # ip_binary=""
+        #     # print(subnetmask)
+        # # for i in range(0,cnt2):
+        #     # subnetmask=subnetmask+'1'
+        # # ip_binary=str(int(ip_binary) << (32 - len(ip_binary)))
+        # print(ip_binary)
+        ip_binary=""
+        while(self.subnet_mask > 0):
+            ip_binary=ip_binary+"1"
+            self.subnet_mask=self.subnet_mask-1
+        while(len(ip_binary) < 32):
+            ip_binary=ip_binary+'0'
+        # subnetmask=str(int(subnetmask) << (32 - len(subnetmask)))
+        # subnetmask=int(subnetmask[0:7],2)#+int(subnetmask[8:15],2)+int(subnetmask[16:23],2)+int(subnetmask[24:31],2)
+        print(ip_binary)
+        self.subnet_mask = str(int(ip_binary[0:8],2))+"."+str(int(ip_binary[8:16],2))+"."+str(int(ip_binary[16:24],2))+"."+str(int(ip_binary[24:32],2))
+        print(self.subnet_mask)
         # ------------------------------------------------------------------------------------------
         
         return cap
