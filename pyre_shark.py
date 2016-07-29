@@ -34,6 +34,7 @@ import logging
 #  int(str,2)で2進数から10進数へ
 #  &でand取る
 # マルチキャストに対応する？
+# host_sub が不完全
 #--------------------------------
 
 # gloval value
@@ -52,6 +53,7 @@ import logging
 # loopFlag=1
 item_addr=0
 scene_addr=0
+
 
 class MainWindow(QWidget):
     
@@ -79,6 +81,10 @@ class MainWindow(QWidget):
         self.srcLocationY=None
         self.dstLocationX=None
         self.dstLocationY=None
+        self.loglist=[]
+        self.mypackets=""
+        self.__storeNum=1000
+        
         tablen='-'*10
         logging.basicConfig(filename='out_pyreshark.log',format=tablen+'%(asctime)s'+tablen+'\n%(message)s',level=logging.DEBUG)
         
@@ -171,7 +177,7 @@ class MainWindow(QWidget):
         
         self.setLayout(mainLayout)
         self.resize(1400,500)
-        self.setWindowTitle("ULTRA_ONE_Capture")
+        self.setWindowTitle("IP_Mapper")
         # self.setWindowFlags(Qt.WindowStayOnTopHint())
         self.show()
 
@@ -179,7 +185,14 @@ class MainWindow(QWidget):
         # global loopFlag
         self.loopFlag=0
         # print("close")
-        logging.debug("close")
+        # logging.debug("close")
+        with open('./out_pyreshark.log','wb') as f_in:
+            subprocess.check_output(": > ./out_pyreshark.log",shell=True)
+            
+        tablen='-'*40
+        for i in range(0,len(self.loglist)):
+            logging.debug(self.loglist[i])
+            logging.debug(tablen)
         self.compress_log()
         sys.exit(self)
         # sys.exit(1)
@@ -190,19 +203,33 @@ class MainWindow(QWidget):
         self.loopFlag=1
         # self.start_button.setEnabled(false)
         # print("start")
-        logging.debug("start")
+        # logging.debug("start")
     def stop_capture(self):
         # global loopFlag
         self.loopFlag=0
         # print("stop")
-        logging.debug("stop")
+        # logging.debug("stop")
         # self.scene.removeItem(self.item)
+    # def restart_log(self):
+    #     with open('./out_pyreshark.log','wb') as f_in:
+    #         subprocess.check_output(": > ./out_pyreshark.log",shell=True)
+    def store_list(self,log):
+        self.loglist.append(str(log)+'\n'+str(self.mypackets))
+        if(len(self.loglist) > self.__storeNum):
+            # print(self.loglist[0])
+            self.loglist.pop(0)
+        # else:
+            # print("loglist="+str(len(self.loglist)))
     def compress_log(self):
         with open('./out_pyreshark.log','rb') as f_in:
             with gzip.open('./out_pyreshark.log.gz','wb') as f_out:
                 shutil.copyfileobj(f_in,f_out)
                 os.remove('./out_pyreshark.log')
 
+    # def write_log(self,log):
+    #     with open('./out_pyreshark.log','wb') as f_in:
+    #         subprocess.check_output(": > ./out_pyreshark.log",shell=True)
+    #         logging.debug(log)
     def browse_log(self):
         # self.stop_capture()
         d = QtGui.QDialog()
@@ -215,9 +242,18 @@ class MainWindow(QWidget):
         font.setPointSize(14)
         textBox.resize(500,500)
         textBox.setCurrentFont(font)
-        with open('./out_pyreshark.log','r') as f:
-            for line in f:
-                textBox.append(line)
+        with open('./out_pyreshark.log','wb') as f_in:
+            subprocess.check_output(": > ./out_pyreshark.log",shell=True)
+            
+        tablen='-'*40
+        for i in range(0,len(self.loglist)):
+            textBox.append(self.loglist[i])
+            textBox.append(tablen)
+            logging.debug(self.loglist[i])
+            logging.debug(tablen)
+        # with open('./out_pyreshark.log','r') as f:
+        #     for line in f:
+        #         textBox.append(line)
         textBox.isReadOnly()
         
         d.exec_()
@@ -281,6 +317,7 @@ class MainWindow(QWidget):
         
     def capture_thread(self):
         # logging.debug ("Thread Start")
+        counter=0
         cap = self.capture_packet(sys.argv)
         while(self.loopFlag):
             # # logging.info("LoopFlag"+str(self.loopFlag))
@@ -320,6 +357,7 @@ class MainWindow(QWidget):
             self.drawFlag=1
             time.sleep(0.01)
             self.update(0,0,1400,500)
+            
             # nowtime=time.clock()
             # while((time.clock()-nowtime) < 0.5):
             #     # print(self.counter)
@@ -366,7 +404,8 @@ class MainWindow(QWidget):
         # # logging.info("test5")
         # old=str(self.s_cap_res)+" \n=> "+str(self.d_cap_res)
         self.label1.setText(self.s_cap_res+" \n=> "+self.d_cap_res)
-        logging.debug(self.s_cap_res+" \n=> "+self.d_cap_res)
+        # logging.debug(self.s_cap_res+" \n=> "+self.d_cap_res)
+        self.store_list(self.s_cap_res+" \n=> "+self.d_cap_res)
         # self.label1.setText(old)
         # logging.debug("write_ip_finished")
         
@@ -392,13 +431,21 @@ class MainWindow(QWidget):
                 # print(host_addr)
                 if(addr == host_addr):
                     # return "host"
-                    return "俺"
+                    return "ローカルホスト"
                 else:
                     # return "the same network"
                     return "同一ネットワーク"
             else:
+                print("flag"+str(flag))
+                print(self.host_addr_v4)
+                print(addr)
+                print(subnetmask)
+                print(self.host_sub)
                 return None
         except:
+            print("flag except"+str(flag))
+            print(self.host_addr_v4)
+            print(addr)
             return None
 
     def get_geoip_location(self,addr):
@@ -555,7 +602,8 @@ class MainWindow(QWidget):
                 data = packet[h_size:]
             
                 # logging.debug ('Data : ' + data)
-                logging.debug('TCP ' + ' Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Sequence Number : ' + str(sequence) + ' Acknowledgement : ' + str(acknowledgement) + ' TCP header length : ' + str(tcph_length) + 'Data : ' + str(data))
+                # logging.debug('TCP ' + ' Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Sequence Number : ' + str(sequence) + ' Acknowledgement : ' + str(acknowledgement) + ' TCP header length : ' + str(tcph_length) + 'Data : ' + str(data))
+                self.mypackets = 'TCP ' + ' Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Sequence Number : ' + str(sequence) + ' Acknowledgement : ' + str(acknowledgement) + ' TCP header length : ' + str(tcph_length) + 'Data : ' + str(data)
                 return "TCP",s_addr,d_addr
         
             #ICMP Packets
@@ -581,7 +629,8 @@ class MainWindow(QWidget):
                 data = packet[h_size:]
             
                 # logging.debug ('Data : ' + data)
-                logging.debug('ICMP '+'Type : ' + str(icmp_type) + ' Code : ' + str(code) + ' Checksum : ' + str(checksum) + ' Data : ' + str(data))
+                # logging.debug('ICMP '+'Type : ' + str(icmp_type) + ' Code : ' + str(code) + ' Checksum : ' + str(checksum) + ' Data : ' + str(data))
+                self.mypackets = 'ICMP '+'Type : ' + str(icmp_type) + ' Code : ' + str(code) + ' Checksum : ' + str(checksum) + ' Data : ' + str(data)
                 return "ICMP",s_addr,d_addr
             # return data
  
@@ -612,7 +661,8 @@ class MainWindow(QWidget):
 
                 # return str(s_addr),str(d_addr)
                 # logging.debug ("test17"+s_addr)
-                logging.debug('UDP '+ 'Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Length : ' + str(length) + ' Checksum : ' + str(checksum) + 'Data : ' + str(data))
+                # logging.debug('UDP '+ 'Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Length : ' + str(length) + ' Checksum : ' + str(checksum) + 'Data : ' + str(data))
+                self.mypackets = 'UDP '+ 'Source Port : ' + str(source_port) + ' Dest Port : ' + str(dest_port) + ' Length : ' + str(length) + ' Checksum : ' + str(checksum) + 'Data : ' + str(data)
                 return "UDP",s_addr,d_addr
             # return data
 
