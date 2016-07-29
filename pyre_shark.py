@@ -324,6 +324,7 @@ class MainWindow(QWidget):
             # logging.debug ("next")
             (header,packet) = cap.next()
             # logging.debug ("parse")
+            self.mypackets=""
             (protocol_type,s_addr,d_addr) = self.parse_packet(packet)
             # # logging.info ("res")
             self.s_cap_res = str(protocol_type)+": "+ str(s_addr)+"("+str(self.get_geoip(s_addr)) + ","+str(self.get_geoip_location(s_addr))+")"
@@ -436,16 +437,8 @@ class MainWindow(QWidget):
                     # return "the same network"
                     return "同一ネットワーク"
             else:
-                print("flag"+str(flag))
-                print(self.host_addr_v4)
-                print(addr)
-                print(subnetmask)
-                print(self.host_sub)
                 return None
         except:
-            print("flag except"+str(flag))
-            print(self.host_addr_v4)
-            print(addr)
             return None
 
     def get_geoip_location(self,addr):
