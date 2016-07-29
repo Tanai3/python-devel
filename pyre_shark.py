@@ -66,7 +66,8 @@ class MainWindow(QWidget):
         # self.y_redline = 275
         self.x_greenwich = 67
         self.y_redline = 296
-        self.reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb',['ja'])
+        # self.reader = geoip2.database.Reader('/usr/local/share/GeoIP/GeoLite2-City.mmdb',['ja'])
+        self.reader = geoip2.database.Reader('GeoIP/GeoLite2-City.mmdb',['ja'])
         self.worldmapimage = 'world_map.png'
         self.host_addr_v4=""
         self.host_sub=['192','168','11','0']
